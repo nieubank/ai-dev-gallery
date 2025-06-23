@@ -79,18 +79,14 @@ internal sealed partial class Multipose : BaseSamplePage
     {
         return Task.Run(async () =>
         {
-            Microsoft.Windows.AI.MachineLearning.Infrastructure infrastructure = new();
-
-            try
+            if (device != null)
             {
-                await infrastructure.DownloadPackagesAsync();
+                await WinMLHelpers.EnsureAndRegisterProviderAsync(device);
             }
-            catch (Exception ex)
+            else
             {
-                Debug.WriteLine($"WARNING: Failed to download packages: {ex.Message}");
+                await WinMLHelpers.EnsureAndRegisterAllAsync();
             }
-
-            await infrastructure.RegisterExecutionProviderLibrariesAsync();
 
             _poseSession = await GetInferenceSession(poseModelPath, policy, device, compileModel);
             _detectionSession = await GetInferenceSession(detectionModelPath, ExecutionProviderDevicePolicy.PREFER_CPU, device, compileModel);
@@ -105,19 +101,6 @@ internal sealed partial class Multipose : BaseSamplePage
             {
                 throw new FileNotFoundException("Model file not found.", modelPath);
             }
-
-            Microsoft.Windows.AI.MachineLearning.Infrastructure infrastructure = new();
-
-            try
-            {
-                await infrastructure.DownloadPackagesAsync();
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"WARNING: Failed to download packages: {ex.Message}");
-            }
-
-            await infrastructure.RegisterExecutionProviderLibrariesAsync();
 
             SessionOptions sessionOptions = new();
             sessionOptions.RegisterOrtExtensions();

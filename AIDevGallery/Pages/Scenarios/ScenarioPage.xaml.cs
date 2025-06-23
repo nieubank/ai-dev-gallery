@@ -122,17 +122,7 @@ internal sealed partial class ScenarioPage : Page
         }
 
         OrtEnv.Instance();
-        Microsoft.Windows.AI.MachineLearning.Infrastructure infrastructure = new();
-
-        try
-        {
-            await infrastructure.DownloadPackagesAsync();
-        }
-        catch (Exception)
-        {
-        }
-
-        await infrastructure.RegisterExecutionProviderLibrariesAsync();
+        await WinMLHelpers.EnsureAndRegisterAllAsync();
 
         supportedHardwareAccelerators = [new([HardwareAccelerator.CPU], "CPU", "CPU", "CPU")];
 

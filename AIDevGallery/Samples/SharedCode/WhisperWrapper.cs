@@ -20,35 +20,28 @@ internal class WhisperWrapper : IDisposable
 
     public static async Task<WhisperWrapper> CreateAsync(string modelPath, ExecutionProviderDevicePolicy? policy, string? device, bool compileModel)
     {
-        Microsoft.Windows.AI.MachineLearning.Infrastructure infrastructure = new();
-
-        try
-        {
-            await infrastructure.DownloadPackagesAsync();
-        }
-        catch (Exception ex)
-        {
-            Debug.WriteLine($"WARNING: Failed to download packages: {ex.Message}");
-        }
-
-        await infrastructure.RegisterExecutionProviderLibrariesAsync();
-
 #pragma warning disable CA2000 // Dispose objects before losing scope
         SessionOptions sessionOptions = new();
 #pragma warning restore CA2000 // Dispose objects before losing scope
         sessionOptions.RegisterOrtExtensions();
 
-        if (policy != null)
+        if (device != null)
         {
-            sessionOptions.SetEpSelectionPolicy(policy.Value);
-        }
-        else if (device != null)
-        {
+            await WinMLHelpers.EnsureAndRegisterProviderAsync(device);
             sessionOptions.AppendExecutionProviderFromEpName(device);
 
             if (compileModel)
             {
                 modelPath = sessionOptions.GetCompiledModel(modelPath, device) ?? modelPath;
+            }
+        }
+        else
+        {
+            await WinMLHelpers.EnsureAndRegisterAllAsync();
+
+            if (policy != null)
+            {
+                sessionOptions.SetEpSelectionPolicy(policy.Value);
             }
         }
 

@@ -67,19 +67,6 @@ internal class StableDiffusion : IDisposable
                 throw new FileNotFoundException("Model file not found.", modelPath);
             }
 
-            Microsoft.Windows.AI.MachineLearning.Infrastructure infrastructure = new();
-
-            try
-            {
-                await infrastructure.DownloadPackagesAsync();
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"WARNING: Failed to download packages: {ex.Message}");
-            }
-
-            await infrastructure.RegisterExecutionProviderLibrariesAsync();
-
             SessionOptions sessionOptions = new();
             sessionOptions.RegisterOrtExtensions();
 
@@ -89,17 +76,23 @@ internal class StableDiffusion : IDisposable
             sessionOptions.AddFreeDimensionOverrideByName("width", config.Width / 8);
             sessionOptions.AddFreeDimensionOverrideByName("sequence", 77);
 
-            if (policy != null)
+            if (device != null)
             {
-                sessionOptions.SetEpSelectionPolicy(policy.Value);
-            }
-            else if (device != null)
-            {
+                await WinMLHelpers.EnsureAndRegisterProviderAsync(device);
                 sessionOptions.AppendExecutionProviderFromEpName(device);
 
                 if (compileOption)
                 {
                     modelPath = sessionOptions.GetCompiledModel(modelPath, device) ?? modelPath;
+                }
+            }
+            else
+            {
+                await WinMLHelpers.EnsureAndRegisterAllAsync();
+
+                if (policy != null)
+                {
+                    sessionOptions.SetEpSelectionPolicy(policy.Value);
                 }
             }
 

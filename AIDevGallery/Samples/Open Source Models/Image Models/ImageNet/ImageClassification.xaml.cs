@@ -84,33 +84,26 @@ internal sealed partial class ImageClassification : BaseSamplePage
                 return;
             }
 
-            Microsoft.Windows.AI.MachineLearning.Infrastructure infrastructure = new();
-
-            try
-            {
-                await infrastructure.DownloadPackagesAsync();
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"WARNING: Failed to download packages: {ex.Message}");
-            }
-
-            await infrastructure.RegisterExecutionProviderLibrariesAsync();
-
             SessionOptions sessionOptions = new();
             sessionOptions.RegisterOrtExtensions();
 
-            if (policy != null)
+            if (epName != null)
             {
-                sessionOptions.SetEpSelectionPolicy(policy.Value);
-            }
-            else if (epName != null)
-            {
+                await WinMLHelpers.EnsureAndRegisterProviderAsync(epName);
                 sessionOptions.AppendExecutionProviderFromEpName(epName);
 
                 if (compileModel)
                 {
                     modelPath = sessionOptions.GetCompiledModel(modelPath, epName) ?? modelPath;
+                }
+            }
+            else
+            {
+                await WinMLHelpers.EnsureAndRegisterAllAsync();
+
+                if (policy != null)
+                {
+                    sessionOptions.SetEpSelectionPolicy(policy.Value);
                 }
             }
 

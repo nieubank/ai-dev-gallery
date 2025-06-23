@@ -81,33 +81,26 @@ internal sealed partial class SuperResolution : BaseSamplePage
                 return;
             }
 
-            Microsoft.Windows.AI.MachineLearning.Infrastructure infrastructure = new();
-
-            try
-            {
-                await infrastructure.DownloadPackagesAsync();
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"WARNING: Failed to download packages: {ex.Message}");
-            }
-
-            await infrastructure.RegisterExecutionProviderLibrariesAsync();
-
             SessionOptions sessionOptions = new();
             sessionOptions.RegisterOrtExtensions();
 
-            if (policy != null)
+            if (device != null)
             {
-                sessionOptions.SetEpSelectionPolicy(policy.Value);
-            }
-            else if (device != null)
-            {
+                await WinMLHelpers.EnsureAndRegisterProviderAsync(device);
                 sessionOptions.AppendExecutionProviderFromEpName(device);
 
                 if (compileModel)
                 {
                     modelPath = sessionOptions.GetCompiledModel(modelPath, device) ?? modelPath;
+                }
+            }
+            else
+            {
+                await WinMLHelpers.EnsureAndRegisterAllAsync();
+
+                if (policy != null)
+                {
+                    sessionOptions.SetEpSelectionPolicy(policy.Value);
                 }
             }
 
