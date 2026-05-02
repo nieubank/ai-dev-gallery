@@ -27,42 +27,6 @@
     <MicrosoftWindowsAppSDKFilesExcluded Include="$(SelfContainedIntermediateOutputPath)MsixContent\Microsoft.Windows.AI.MachineLearning.dll" />
   </ItemGroup>
 
-  <!-- Copy WinML Runtime NuGet native DLLs into MsixContent for self-contained MSIX packaging.
-       These are not part of the WASDK framework package and must be explicitly included. -->
-  <Target Name="CopyWinMLRuntimeToMsixContent" AfterTargets="Build"
-          Condition="'$(EnableWinMLRuntime)' == 'true' And '$(WindowsAppSDKSelfContained)' == 'true'"
-          DependsOnTargets="ResolvePackageAssets">
-    <PropertyGroup>
-      <_MsixContentDir>$(IntermediateOutputPath)MsixContent\</_MsixContentDir>
-    </PropertyGroup>
-    <ItemGroup>
-      <_WinMLRuntimeFiles Include="@(NativeCopyLocalItems)"
-                          Condition="$([System.String]::Copy('%(NativeCopyLocalItems.NuGetPackageId)').Equals('Microsoft.Windows.AI.MachineLearning', StringComparison.OrdinalIgnoreCase))" />
-    </ItemGroup>
-    <Copy SourceFiles="@(_WinMLRuntimeFiles)"
-          DestinationFolder="$(_MsixContentDir)"
-          SkipUnchangedFiles="true" />
-    <!-- WORKAROUND: WinMLRuntimeCore.dll has non-delay-loaded imports on cgc.dll, cgc_ir.dll, dxcgc.dll
-         (GPU shader compiler DLLs) that are not included in the Microsoft.Windows.AI.MachineLearning NuGet.
-         Copy them from a local CGC SDK drop until this is fixed in the product. -->
-    <ItemGroup>
-      <_CgcFiles Include="C:\src\windows-ml\packages\cgc-sdk-drop.6.5.0\bin\x64\cgc.dll" Condition="Exists('C:\src\windows-ml\packages\cgc-sdk-drop.6.5.0\bin\x64\cgc.dll')" />
-      <_CgcFiles Include="C:\src\windows-ml\packages\cgc-sdk-drop.6.5.0\bin\x64\cgc_ir.dll" Condition="Exists('C:\src\windows-ml\packages\cgc-sdk-drop.6.5.0\bin\x64\cgc_ir.dll')" />
-      <_CgcFiles Include="C:\src\windows-ml\packages\cgc-sdk-drop.6.5.0\bin\x64\dxcgc.dll" Condition="Exists('C:\src\windows-ml\packages\cgc-sdk-drop.6.5.0\bin\x64\dxcgc.dll')" />
-    </ItemGroup>
-    <Copy SourceFiles="@(_CgcFiles)"
-          DestinationFolder="$(_MsixContentDir)"
-          SkipUnchangedFiles="true"
-          Condition="'@(_CgcFiles)' != ''" />
-    <Copy SourceFiles="@(_CgcFiles)"
-          DestinationFolder="$(OutputPath)"
-          SkipUnchangedFiles="true"
-          Condition="'@(_CgcFiles)' != ''" />
-    <Message Importance="High" Text="Copied WinML Runtime native DLLs to MsixContent: @(_WinMLRuntimeFiles->'%(Filename)%(Extension)', ', ')" />
-    <Message Importance="High" Text="Copied CGC shader compiler DLLs: @(_CgcFiles->'%(Filename)%(Extension)', ', ')" Condition="'@(_CgcFiles)' != ''" />
-    <Warning Text="CGC shader compiler DLLs (cgc.dll, cgc_ir.dll, dxcgc.dll) not found at C:\src\windows-ml\packages\cgc-sdk-drop.6.5.0\bin\x64\. WinML Runtime GPU path will fail." Condition="'@(_CgcFiles)' == ''" />
-  </Target>
-
   <!-- Also remove any non-NuGet copies from NativeCopyLocalItems/ReferenceCopyLocalPaths
        (e.g., from Foundry or WASDK.ML runtimes-framework convention) -->
   <Target Name="ExcludeWasdkMLDuplicateLibs" AfterTargets="ResolvePackageAssets"
