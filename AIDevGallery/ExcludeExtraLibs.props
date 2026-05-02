@@ -15,18 +15,70 @@
     <Message Importance="High" Text="Excluded Foundry onnxruntime libraries. Using WindowsAppSDK's transitive dependencies instead." />
   </Target>
 
-  <!-- Remove CUDA EP on Windows x64. onnxruntime-genai-cuda.dll is required for TRT RTX models. -->
-  <Target Name="ExcludeCudaLibs" Condition="'$(RuntimeIdentifier)'=='win-x64' Or '$(Platform)'=='x64'" AfterTargets="ResolvePackageAssets">
+  <!-- When EnableWinMLRuntime is active, the Microsoft.Windows.AI.MachineLearning NuGet provides
+       DirectML, onnxruntime, and Microsoft.Windows.AI.MachineLearning as a self-contained matched set
+       alongside WinMLRuntime*, WinMLTokenizer, and WinMLTextGeneration.
+       WASDK's self-contained mode extracts its own copies from the MSIX into MsixContent.
+       Use WASDK's built-in MicrosoftWindowsAppSDKFilesExcluded to suppress the WASDK copies,
+       letting the NuGet's matched versions win. -->
+  <ItemGroup Condition="'$(EnableWinMLRuntime)' == 'true'">
+    <MicrosoftWindowsAppSDKFilesExcluded Include="$(SelfContainedIntermediateOutputPath)MsixContent\DirectML.dll" />
+    <MicrosoftWindowsAppSDKFilesExcluded Include="$(SelfContainedIntermediateOutputPath)MsixContent\onnxruntime.dll" />
+    <MicrosoftWindowsAppSDKFilesExcluded Include="$(SelfContainedIntermediateOutputPath)MsixContent\Microsoft.Windows.AI.MachineLearning.dll" />
+  </ItemGroup>
+
+  <!-- Copy WinML Runtime NuGet native DLLs into MsixContent for self-contained MSIX packaging.
+       These are not part of the WASDK framework package and must be explicitly included. -->
+  <Target Name="CopyWinMLRuntimeToMsixContent" AfterTargets="Build"
+          Condition="'$(EnableWinMLRuntime)' == 'true' And '$(WindowsAppSDKSelfContained)' == 'true'"
+          DependsOnTargets="ResolvePackageAssets">
+    <PropertyGroup>
+      <_MsixContentDir>$(IntermediateOutputPath)MsixContent\</_MsixContentDir>
+    </PropertyGroup>
     <ItemGroup>
-      <!-- match onnxruntime_providers_cuda (we're matching %(Filename) which excludes the extension) -->
-      <NativeCopyLocalItems Remove="@(NativeCopyLocalItems)"
-                            Condition="$([System.Text.RegularExpressions.Regex]::IsMatch('%(Filename)', 
-                                      'onnxruntime_providers_cuda', RegexOptions.IgnoreCase))" />
+      <_WinMLRuntimeFiles Include="@(NativeCopyLocalItems)"
+                          Condition="$([System.String]::Copy('%(NativeCopyLocalItems.NuGetPackageId)').Equals('Microsoft.Windows.AI.MachineLearning', StringComparison.OrdinalIgnoreCase))" />
     </ItemGroup>
-    <Message Importance="Normal" Text="Excluded onnxruntime CUDA libraries from package (except onnxruntime-genai-cuda)." />
+    <Copy SourceFiles="@(_WinMLRuntimeFiles)"
+          DestinationFolder="$(_MsixContentDir)"
+          SkipUnchangedFiles="true" />
+    <!-- WORKAROUND: WinMLRuntimeCore.dll has non-delay-loaded imports on cgc.dll, cgc_ir.dll, dxcgc.dll
+         (GPU shader compiler DLLs) that are not included in the Microsoft.Windows.AI.MachineLearning NuGet.
+         Copy them from a local CGC SDK drop until this is fixed in the product. -->
+    <ItemGroup>
+      <_CgcFiles Include="C:\src\windows-ml\packages\cgc-sdk-drop.6.5.0\bin\x64\cgc.dll" Condition="Exists('C:\src\windows-ml\packages\cgc-sdk-drop.6.5.0\bin\x64\cgc.dll')" />
+      <_CgcFiles Include="C:\src\windows-ml\packages\cgc-sdk-drop.6.5.0\bin\x64\cgc_ir.dll" Condition="Exists('C:\src\windows-ml\packages\cgc-sdk-drop.6.5.0\bin\x64\cgc_ir.dll')" />
+      <_CgcFiles Include="C:\src\windows-ml\packages\cgc-sdk-drop.6.5.0\bin\x64\dxcgc.dll" Condition="Exists('C:\src\windows-ml\packages\cgc-sdk-drop.6.5.0\bin\x64\dxcgc.dll')" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_CgcFiles)"
+          DestinationFolder="$(_MsixContentDir)"
+          SkipUnchangedFiles="true"
+          Condition="'@(_CgcFiles)' != ''" />
+    <Copy SourceFiles="@(_CgcFiles)"
+          DestinationFolder="$(OutputPath)"
+          SkipUnchangedFiles="true"
+          Condition="'@(_CgcFiles)' != ''" />
+    <Message Importance="High" Text="Copied WinML Runtime native DLLs to MsixContent: @(_WinMLRuntimeFiles->'%(Filename)%(Extension)', ', ')" />
+    <Message Importance="High" Text="Copied CGC shader compiler DLLs: @(_CgcFiles->'%(Filename)%(Extension)', ', ')" Condition="'@(_CgcFiles)' != ''" />
+    <Warning Text="CGC shader compiler DLLs (cgc.dll, cgc_ir.dll, dxcgc.dll) not found at C:\src\windows-ml\packages\cgc-sdk-drop.6.5.0\bin\x64\. WinML Runtime GPU path will fail." Condition="'@(_CgcFiles)' == ''" />
   </Target>
 
-  <!-- Remove QNN EP and IHV libraries on Windows ARM64 -->
+  <!-- Also remove any non-NuGet copies from NativeCopyLocalItems/ReferenceCopyLocalPaths
+       (e.g., from Foundry or WASDK.ML runtimes-framework convention) -->
+  <Target Name="ExcludeWasdkMLDuplicateLibs" AfterTargets="ResolvePackageAssets"
+          Condition="'$(EnableWinMLRuntime)' == 'true'">
+    <ItemGroup>
+      <NativeCopyLocalItems Remove="@(NativeCopyLocalItems)"
+                            Condition="!$([System.String]::Copy('%(NativeCopyLocalItems.NuGetPackageId)').Equals('Microsoft.Windows.AI.MachineLearning', StringComparison.OrdinalIgnoreCase))
+                                       And ($([System.Text.RegularExpressions.Regex]::IsMatch('%(Filename)%(Extension)',
+                                      '^(DirectML|onnxruntime|Microsoft\.Windows\.AI\.MachineLearning)\.dll$', RegexOptions.IgnoreCase)))" />
+      <ReferenceCopyLocalPaths Remove="@(ReferenceCopyLocalPaths)"
+                            Condition="!$([System.String]::Copy('%(ReferenceCopyLocalPaths.NuGetPackageId)').Equals('Microsoft.Windows.AI.MachineLearning', StringComparison.OrdinalIgnoreCase))
+                                       And ($([System.Text.RegularExpressions.Regex]::IsMatch('%(Filename)%(Extension)',
+                                      '^(DirectML|onnxruntime|Microsoft\.Windows\.AI\.MachineLearning)\.dll$', RegexOptions.IgnoreCase)))" />
+    </ItemGroup>
+    <Message Importance="High" Text="Using self-contained DirectML/onnxruntime/ML from Microsoft.Windows.AI.MachineLearning NuGet." />
+  </Target>
   <Target Name="ExcludeQnnLibs" Condition="'$(RuntimeIdentifier)'=='win-arm64' Or '$(Platform)'=='ARM64'" AfterTargets="ResolvePackageAssets">
     <ItemGroup>
       <NativeCopyLocalItems Remove="@(NativeCopyLocalItems)"

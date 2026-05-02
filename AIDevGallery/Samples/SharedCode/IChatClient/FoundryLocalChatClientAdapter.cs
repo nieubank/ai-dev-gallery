@@ -1,6 +1,8 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 
+#if ENABLE_FOUNDRY_LOCAL
+
 using Microsoft.Extensions.AI;
 using System;
 using System.Collections.Generic;
@@ -142,3 +144,5 @@ internal class FoundryLocalChatClientAdapter : IChatClient
         }).ToList();
     }
 }
+
+#endif

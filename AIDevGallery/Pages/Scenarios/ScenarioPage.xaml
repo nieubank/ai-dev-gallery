@@ -251,13 +251,14 @@
                                             Margin="0,16,0,8"
                                             HorizontalAlignment="Stretch"
                                             Fill="{ThemeResource DividerStrokeColorDefaultBrush}" />
-                                        <Button
-                                            x:Name="WinMLOptionsApply"
-                                            Grid.Row="1"
-                                            HorizontalAlignment="Stretch"
-                                            Click="ApplySampleOptions"
-                                            Content="Apply"
-                                            Style="{StaticResource AccentButtonStyle}" />
+                                        <StackPanel Grid.Row="1" Spacing="8">
+                                            <Button
+                                                x:Name="WinMLOptionsApply"
+                                                HorizontalAlignment="Stretch"
+                                                Click="ApplySampleOptions"
+                                                Content="Apply"
+                                                Style="{StaticResource AccentButtonStyle}" />
+                                        </StackPanel>
                                     </Grid>
                                 </Grid>
                                 <!--<StackPanel Width="200" Spacing="4">
@@ -330,6 +331,77 @@
                                 Grid.Column="1"
                                 Margin="0,0,8,0"
                                 VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
+                    <!-- Inference Engine selector (visible only in WINML_RUNTIME_EXPERIMENTAL builds) -->
+                    <ComboBox
+                        x:Name="InferenceEngineComboBox"
+                        MinWidth="180"
+                        VerticalAlignment="Center"
+                        SelectionChanged="InferenceEngineComboBox_SelectionChanged"
+                        Visibility="Collapsed">
+                        <ComboBoxItem Content="OnnxRuntime GenAI" Tag="OrtGenAI" />
+                        <ComboBoxItem Content="Windows ML Runtime" Tag="WinMLRuntime" />
+                    </ComboBox>
+                    <!-- WinML Runtime Options button (visible when Runtime engine is selected) -->
+                    <Button
+                        x:Name="WinMLRuntimeOptionsButton"
+                        Padding="8,6"
+                        VerticalAlignment="Center"
+                        Visibility="Collapsed"
+                        AutomationProperties.Name="WinML Runtime Options">
+                        <Button.Flyout>
+                            <Flyout
+                                x:Name="WinMLRuntimeOptionsFlyout"
+                                Opening="WinMLRuntimeOptionsFlyout_Opening"
+                                Placement="Bottom">
+                                <Grid
+                                    IsTabStop="False"
+                                    Width="280"
+                                    RowSpacing="12">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                    </Grid.RowDefinitions>
+                                    <TextBlock
+                                        FontSize="12"
+                                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                        Text="Configure the Windows ML Runtime pipeline"
+                                        TextWrapping="Wrap" />
+                                    <ComboBox
+                                        x:Name="RuntimeDeviceTypeComboBox"
+                                        Grid.Row="1"
+                                        HorizontalAlignment="Stretch"
+                                        Header="Device type">
+                                        <ComboBoxItem Content="Default (auto)" Tag="Default" />
+                                        <ComboBoxItem Content="CPU" Tag="CPU" />
+                                        <ComboBoxItem Content="GPU" Tag="GPU" />
+                                        <ComboBoxItem Content="NPU" Tag="NPU" />
+                                    </ComboBox>
+                                    <ComboBox
+                                        x:Name="RuntimeExecutionPolicyComboBox"
+                                        Grid.Row="2"
+                                        HorizontalAlignment="Stretch"
+                                        Header="Execution policy">
+                                        <ComboBoxItem Content="Default" Tag="Default" />
+                                        <ComboBoxItem Content="Prefer Efficiency" Tag="PreferEfficiency" />
+                                        <ComboBoxItem Content="Prefer Performance" Tag="PreferPerformance" />
+                                    </ComboBox>
+                                    <Button
+                                        x:Name="RuntimeOptionsApplyButton"
+                                        Grid.Row="3"
+                                        HorizontalAlignment="Stretch"
+                                        Click="ApplyRuntimeOptions"
+                                        Content="Apply"
+                                        Style="{StaticResource AccentButtonStyle}" />
+                                </Grid>
+                            </Flyout>
+                        </Button.Flyout>
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <FontIcon FontSize="14" Glyph="&#xE950;" />
+                            <TextBlock x:Name="RuntimeOptionsButtonText" Text="Default" VerticalAlignment="Center" />
                         </StackPanel>
                     </Button>
                 </StackPanel>

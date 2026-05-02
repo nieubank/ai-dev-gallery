@@ -46,11 +46,13 @@ internal class ModelDownloadQueue()
 
         ModelDownload modelDownload;
 
+#if ENABLE_FOUNDRY_LOCAL
         if (modelDetails.Url.StartsWith("fl:", StringComparison.InvariantCultureIgnoreCase))
         {
             modelDownload = new FoundryLocalModelDownload(modelDetails);
         }
         else
+#endif
         {
             modelDownload = new OnnxModelDownload(modelDetails);
         }

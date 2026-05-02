@@ -45,6 +45,11 @@ internal partial class AppData : ObservableObject
 
     public WinMlSampleOptions WinMLSampleOptions { get; set; }
 
+#if WINML_RUNTIME_EXPERIMENTAL
+    public bool UseWinMLRuntime { get; set; }
+    public WinMLRuntimeOptions WinMLRuntimeOptions { get; set; } = new("Default", "Default");
+#endif
+
     private Dictionary<string, Dictionary<string, string>>? SampleData { get; set; }
 
     public AppData()
@@ -272,3 +277,5 @@ internal class CustomParametersState
 internal record UsageHistory(string Id, HardwareAccelerator? HardwareAccelerator);
 
 internal record WinMlSampleOptions(ExecutionProviderDevicePolicy? Policy, string? EpName, bool CompileModel, string? DeviceType);
+
+internal record WinMLRuntimeOptions(string DeviceType, string ExecutionPolicy);

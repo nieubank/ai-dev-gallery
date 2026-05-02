@@ -17,12 +17,22 @@ namespace AIDevGallery.ExternalModelUtils;
 
 internal static class ExternalModelHelper
 {
-    private static List<IExternalModelProvider> _modelProviders = [
-        FoundryLocalModelProvider.Instance,
-        OllamaModelProvider.Instance,
-        OpenAIModelProvider.Instance,
-        LemonadeModelProvider.Instance
-    ];
+    private static List<IExternalModelProvider> _modelProviders = GetModelProviders();
+
+    private static List<IExternalModelProvider> GetModelProviders()
+    {
+        var providers = new List<IExternalModelProvider>();
+
+#if ENABLE_FOUNDRY_LOCAL
+        providers.Add(FoundryLocalModelProvider.Instance);
+#endif
+
+        providers.Add(OllamaModelProvider.Instance);
+        providers.Add(OpenAIModelProvider.Instance);
+        providers.Add(LemonadeModelProvider.Instance);
+
+        return providers;
+    }
 
     public static async Task<IEnumerable<ModelDetails>> GetAllModelsAsync()
     {

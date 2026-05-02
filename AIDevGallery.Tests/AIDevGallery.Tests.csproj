@@ -21,6 +21,27 @@
     <WindowsAppSdkDeploymentManagerInitialize>false</WindowsAppSdkDeploymentManagerInitialize>
   </PropertyGroup>
 
+  <!-- WinML Runtime: match main project's experimental flag -->
+  <PropertyGroup Condition="'$(EnableWinMLRuntime)' == 'true'">
+    <DefineConstants>$(DefineConstants);WINML_RUNTIME_EXPERIMENTAL</DefineConstants>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <!-- Required by Microsoft.Windows.AI.MachineLearning targets to bypass framework-dependent validation -->
+    <_WindowsAppSDKML>true</_WindowsAppSDKML>
+  </PropertyGroup>
+
+  <!-- Foundry Local: match main project's flag -->
+  <PropertyGroup Condition="'$(EnableFoundryLocal)' == 'true'">
+    <DefineConstants>$(DefineConstants);ENABLE_FOUNDRY_LOCAL</DefineConstants>
+  </PropertyGroup>
+
+  <!-- Exclude Foundry Local test files when not building with EnableFoundryLocal -->
+  <ItemGroup Condition="'$(EnableFoundryLocal)' != 'true'">
+    <Compile Remove="IntegrationTests\FoundryLocalIntegrationTests.cs" />
+    <Compile Remove="UnitTests\ExternalModelUtils\FoundryLocalChatClientAdapterTests.cs" />
+    <Compile Remove="UnitTests\ExternalModelUtils\FoundryLocalDataModelsTests.cs" />
+    <Compile Remove="UnitTests\ExternalModelUtils\FoundryLocalModelProviderTests.cs" />
+  </ItemGroup>
+
   <PropertyGroup Condition="'$(IsWindowsAppSDKPreRelease)' == 'true' And '$(SelfContainedIfPreviewWASDK)' == 'true'">
     <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
   </PropertyGroup>
@@ -67,4 +88,5 @@
   <PropertyGroup Condition="'$(DisableHasPackageAndPublishMenuAddedByProject)'!='true' and '$(EnableMsixTooling)'=='true'">
     <HasPackageAndPublishMenu>true</HasPackageAndPublishMenu>
   </PropertyGroup>
+  <Import Project="..\AIDevGallery\ExcludeExtraLibs.props" />
 </Project>

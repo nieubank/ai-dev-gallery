@@ -1,7 +1,10 @@
 ﻿// Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 
+#if ENABLE_FOUNDRY_LOCAL
 using AIDevGallery.ExternalModelUtils;
+#endif
+
 using AIDevGallery.Models;
 using AIDevGallery.Telemetry.Events;
 using System;
@@ -365,6 +368,7 @@ internal class OnnxModelDownload : ModelDownload
     }
 }
 
+#if ENABLE_FOUNDRY_LOCAL
 internal class FoundryLocalModelDownload : ModelDownload
 {
     public FoundryLocalModelDownload(ModelDetails details)
@@ -406,6 +410,7 @@ internal class FoundryLocalModelDownload : ModelDownload
         }
     }
 }
+#endif
 
 [JsonConverter(typeof(JsonStringEnumConverter<DownloadStatus>))]
 internal enum DownloadStatus

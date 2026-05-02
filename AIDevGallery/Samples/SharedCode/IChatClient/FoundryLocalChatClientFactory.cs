@@ -1,6 +1,8 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 
+#if ENABLE_FOUNDRY_LOCAL
+
 using Microsoft.AI.Foundry.Local;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -91,3 +93,5 @@ internal static class FoundryLocalChatClientFactory
         }
     }
 }
+
+#endif

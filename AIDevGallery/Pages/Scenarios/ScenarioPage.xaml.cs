@@ -21,6 +21,8 @@ using System.Linq;
 using System.Threading.Tasks;
 using Windows.ApplicationModel.DataTransfer;
 
+#pragma warning disable SYSLIB1099 // Experimental WinML Runtime COM interop uses runtime-based marshalling
+
 namespace AIDevGallery.Pages;
 
 internal record WinMlEp(List<HardwareAccelerator> HardwareAccelerators, string Name, string ShortName, string DeviceType);
@@ -38,11 +40,18 @@ internal sealed partial class ScenarioPage : Page
         { "Prefer CPU", ExecutionProviderDevicePolicy.PREFER_CPU },
     };
 
+#if WINML_RUNTIME_EXPERIMENTAL
+    private static readonly string[] RuntimeDeviceTypeOrder = ["CPU", "GPU", "NPU"];
+#endif
+
     private Scenario? scenario;
     private List<Sample>? samples;
     private Sample? sample;
     private ObservableCollection<ModelDetails?> modelDetails = new();
     private static List<WinMlEp>? supportedHardwareAccelerators;
+#if WINML_RUNTIME_EXPERIMENTAL
+    private static HashSet<string>? runtimeSupportedDeviceTypes;
+#endif
 
     public ScenarioPage()
     {
@@ -204,7 +213,15 @@ internal sealed partial class ScenarioPage : Page
         }
 
         // temporary fix EP dropdown list for useradded local languagemodel
-        if (selectedModels.Any(m => m != null && m.IsOnnxModel() && string.IsNullOrEmpty(m.ParameterSize) && m.Id.StartsWith("useradded-local-languagemodel", System.StringComparison.InvariantCultureIgnoreCase) == false))
+        bool hasOnnxNonLanguageModel = selectedModels.Any(m => m != null && m.IsOnnxModel() && string.IsNullOrEmpty(m.ParameterSize) && m.Id.StartsWith("useradded-local-languagemodel", System.StringComparison.InvariantCultureIgnoreCase) == false);
+#if WINML_RUNTIME_EXPERIMENTAL
+        // In WinML Runtime experimental mode, also show EP options for language models
+        bool hasOnnxLanguageModel = selectedModels.Any(m => m != null && m.IsOnnxModel() && !string.IsNullOrEmpty(m.ParameterSize));
+        bool showWinMlOptions = hasOnnxNonLanguageModel || hasOnnxLanguageModel;
+#else
+        bool showWinMlOptions = hasOnnxNonLanguageModel;
+#endif
+        if (showWinMlOptions)
         {
             var delayTask = Task.Delay(1000);
             var supportedHardwareAcceleratorsTask = GetSupportedHardwareAccelerators();
@@ -236,10 +253,27 @@ internal sealed partial class ScenarioPage : Page
             UpdateWinMLFlyout();
 
             WinMlModelOptionsButton.Visibility = Visibility.Visible;
+
+#if WINML_RUNTIME_EXPERIMENTAL
+            // Windows ML Runtime text generation is currently wired for ONNX language models.
+            InferenceEngineComboBox.Visibility = hasOnnxLanguageModel ? Visibility.Visible : Visibility.Collapsed;
+            InferenceEngineComboBox.SelectedIndex = hasOnnxLanguageModel && App.AppData.UseWinMLRuntime ? 1 : 0;
+            WinMlModelOptionsButton.Visibility = hasOnnxLanguageModel && App.AppData.UseWinMLRuntime ? Visibility.Collapsed : Visibility.Visible;
+            WinMLRuntimeOptionsButton.Visibility = hasOnnxLanguageModel && App.AppData.UseWinMLRuntime ? Visibility.Visible : Visibility.Collapsed;
+            if (hasOnnxLanguageModel && App.AppData.UseWinMLRuntime)
+            {
+                await EnsureRuntimeDeviceOptionIsValidAsync(supportedHardwareAccelerators);
+                UpdateRuntimeOptionsButtonText();
+            }
+#endif
         }
         else
         {
             WinMlModelOptionsButton.Visibility = Visibility.Collapsed;
+#if WINML_RUNTIME_EXPERIMENTAL
+            InferenceEngineComboBox.Visibility = Visibility.Collapsed;
+            WinMLRuntimeOptionsButton.Visibility = Visibility.Collapsed;
+#endif
         }
 
         if (selectedModels.Count == 1)
@@ -486,6 +520,260 @@ internal sealed partial class ScenarioPage : Page
         UpdateWinMLFlyout();
         UpdateCompileModelVisibility();
     }
+
+    private async void InferenceEngineComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+#if WINML_RUNTIME_EXPERIMENTAL
+        if (InferenceEngineComboBox.SelectedItem is ComboBoxItem selected)
+        {
+            var useRuntime = selected.Tag?.ToString() == "WinMLRuntime";
+            App.AppData.UseWinMLRuntime = useRuntime;
+            _ = App.AppData.SaveAsync();
+
+            // Toggle EP options vs Runtime options visibility
+            WinMlModelOptionsButton.Visibility = useRuntime ? Visibility.Collapsed : Visibility.Visible;
+            WinMLRuntimeOptionsButton.Visibility = useRuntime ? Visibility.Visible : Visibility.Collapsed;
+
+            // Update Runtime options button text
+            if (useRuntime)
+            {
+                var supportedAccelerators = await GetSupportedHardwareAccelerators();
+                await EnsureRuntimeDeviceOptionIsValidAsync(supportedAccelerators);
+                UpdateRuntimeOptionsButtonText();
+            }
+
+            // Reload the sample with the new engine
+            LoadSample(sample);
+        }
+#endif
+    }
+
+#if WINML_RUNTIME_EXPERIMENTAL
+    private async void WinMLRuntimeOptionsFlyout_Opening(object sender, object e)
+    {
+        var supportedAccelerators = await GetSupportedHardwareAccelerators();
+        await EnsureRuntimeDeviceOptionIsValidAsync(supportedAccelerators);
+        UpdateRuntimeDeviceTypeComboBox(supportedAccelerators);
+
+        var options = App.AppData.WinMLRuntimeOptions;
+
+        // Sync Device Type combo
+        foreach (ComboBoxItem item in RuntimeDeviceTypeComboBox.Items)
+        {
+            if (string.Equals(item.Tag?.ToString(), options.DeviceType, System.StringComparison.OrdinalIgnoreCase))
+            {
+                RuntimeDeviceTypeComboBox.SelectedItem = item;
+                break;
+            }
+        }
+
+        if (RuntimeDeviceTypeComboBox.SelectedIndex < 0)
+        {
+            RuntimeDeviceTypeComboBox.SelectedIndex = 0;
+        }
+
+        // Sync Execution Policy combo
+        foreach (ComboBoxItem item in RuntimeExecutionPolicyComboBox.Items)
+        {
+            if (string.Equals(item.Tag?.ToString(), options.ExecutionPolicy, System.StringComparison.OrdinalIgnoreCase))
+            {
+                RuntimeExecutionPolicyComboBox.SelectedItem = item;
+                break;
+            }
+        }
+
+        if (RuntimeExecutionPolicyComboBox.SelectedIndex < 0)
+        {
+            RuntimeExecutionPolicyComboBox.SelectedIndex = 0;
+        }
+    }
+
+    private async void ApplyRuntimeOptions(object sender, RoutedEventArgs e)
+    {
+        WinMLRuntimeOptionsFlyout.Hide();
+
+        var deviceType = (RuntimeDeviceTypeComboBox.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "Default";
+        if (string.IsNullOrWhiteSpace(deviceType))
+        {
+            return;
+        }
+
+        var executionPolicy = (RuntimeExecutionPolicyComboBox.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "Default";
+
+        var oldOptions = App.AppData.WinMLRuntimeOptions;
+        App.AppData.WinMLRuntimeOptions = new WinMLRuntimeOptions(deviceType, executionPolicy);
+
+        if (oldOptions == App.AppData.WinMLRuntimeOptions)
+        {
+            return;
+        }
+
+        UpdateRuntimeOptionsButtonText();
+        await App.AppData.SaveAsync();
+        LoadSample(sample);
+    }
+
+    private void UpdateRuntimeOptionsButtonText()
+    {
+        var options = App.AppData.WinMLRuntimeOptions;
+        var deviceLabel = options.DeviceType == "Default" ? "Auto" : options.DeviceType;
+        var policyLabel = options.ExecutionPolicy == "Default" ? string.Empty : $" · {options.ExecutionPolicy}";
+        RuntimeOptionsButtonText.Text = $"{deviceLabel}{policyLabel}";
+    }
+
+    private async Task EnsureRuntimeDeviceOptionIsValidAsync(IReadOnlyList<WinMlEp> supportedAccelerators)
+    {
+        var eligibleDeviceTypes = GetEligibleRuntimeDeviceTypes(supportedAccelerators);
+        UpdateRuntimeDeviceTypeComboBox(supportedAccelerators);
+
+        if (eligibleDeviceTypes.Count == 0)
+        {
+            return;
+        }
+
+        if (!eligibleDeviceTypes.Contains(App.AppData.WinMLRuntimeOptions.DeviceType))
+        {
+            App.AppData.WinMLRuntimeOptions = App.AppData.WinMLRuntimeOptions with
+            {
+                DeviceType = eligibleDeviceTypes[0]
+            };
+            UpdateRuntimeOptionsButtonText();
+            await App.AppData.SaveAsync();
+        }
+    }
+
+    private void UpdateRuntimeDeviceTypeComboBox(IReadOnlyList<WinMlEp> supportedAccelerators)
+    {
+        var eligibleDeviceTypes = GetEligibleRuntimeDeviceTypes(supportedAccelerators);
+        RuntimeDeviceTypeComboBox.Items.Clear();
+
+        foreach (var deviceType in eligibleDeviceTypes)
+        {
+            RuntimeDeviceTypeComboBox.Items.Add(new ComboBoxItem
+            {
+                Content = deviceType,
+                Tag = deviceType
+            });
+        }
+
+        if (eligibleDeviceTypes.Count == 0)
+        {
+            RuntimeDeviceTypeComboBox.Items.Add(new ComboBoxItem
+            {
+                Content = "No supported device",
+                Tag = string.Empty,
+                IsEnabled = false
+            });
+            RuntimeDeviceTypeComboBox.SelectedIndex = 0;
+            RuntimeOptionsApplyButton.IsEnabled = false;
+            return;
+        }
+
+        RuntimeOptionsApplyButton.IsEnabled = true;
+    }
+
+    private List<string> GetEligibleRuntimeDeviceTypes(IReadOnlyList<WinMlEp> supportedAccelerators)
+    {
+        var modelDeviceTypes = GetSelectedModelRuntimeDeviceTypes(supportedAccelerators);
+        var machineDeviceTypes = supportedAccelerators
+            .Select(ep => ep.DeviceType)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        machineDeviceTypes.IntersectWith(GetRuntimeSupportedDeviceTypes());
+
+        return RuntimeDeviceTypeOrder
+            .Where(deviceType => modelDeviceTypes.Contains(deviceType) && machineDeviceTypes.Contains(deviceType))
+            .ToList();
+    }
+
+    private HashSet<string> GetSelectedModelRuntimeDeviceTypes(IReadOnlyList<WinMlEp> supportedAccelerators)
+    {
+        HashSet<string>? selectedDeviceTypes = null;
+        foreach (var model in modelDetails.Where(m => m != null))
+        {
+            var modelDeviceTypes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var hardwareAccelerator in model!.HardwareAccelerators)
+            {
+                foreach (var ep in supportedAccelerators.Where(ep => ep.HardwareAccelerators.Contains(hardwareAccelerator)))
+                {
+                    modelDeviceTypes.Add(ep.DeviceType);
+                }
+
+                AddRuntimeDeviceTypeForAccelerator(modelDeviceTypes, hardwareAccelerator);
+            }
+
+            selectedDeviceTypes = selectedDeviceTypes is null
+                ? modelDeviceTypes
+                : new HashSet<string>(selectedDeviceTypes.Intersect(modelDeviceTypes), StringComparer.OrdinalIgnoreCase);
+        }
+
+        return selectedDeviceTypes ?? new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+    }
+
+    private static void AddRuntimeDeviceTypeForAccelerator(HashSet<string> deviceTypes, HardwareAccelerator hardwareAccelerator)
+    {
+        switch (hardwareAccelerator)
+        {
+            case HardwareAccelerator.CPU:
+                deviceTypes.Add("CPU");
+                break;
+            case HardwareAccelerator.DML:
+            case HardwareAccelerator.GPU:
+            case HardwareAccelerator.NvTensorRT:
+                deviceTypes.Add("GPU");
+                break;
+            case HardwareAccelerator.QNN:
+            case HardwareAccelerator.NPU:
+            case HardwareAccelerator.VitisAI:
+                deviceTypes.Add("NPU");
+                break;
+        }
+    }
+
+    private static HashSet<string> GetRuntimeSupportedDeviceTypes()
+    {
+        if (runtimeSupportedDeviceTypes != null)
+        {
+            return runtimeSupportedDeviceTypes;
+        }
+
+        runtimeSupportedDeviceTypes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        try
+        {
+            using var runtime = AIDevGallery.Interop.WinMLRuntime.WinMLRuntimeWrapper.Create();
+            runtime.GetRawRuntime().GetCapabilities(out var capabilities);
+            try
+            {
+                AddIfRuntimeSupports(capabilities, AIDevGallery.Interop.WinMLRuntime.WinMLDeviceType.CPU, "CPU");
+                AddIfRuntimeSupports(capabilities, AIDevGallery.Interop.WinMLRuntime.WinMLDeviceType.GPU, "GPU");
+                AddIfRuntimeSupports(capabilities, AIDevGallery.Interop.WinMLRuntime.WinMLDeviceType.NPU, "NPU");
+            }
+            finally
+            {
+                System.Runtime.InteropServices.Marshal.FinalReleaseComObject(capabilities);
+            }
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"Failed to query WinML Runtime capabilities: {ex}");
+            runtimeSupportedDeviceTypes.Add("CPU");
+        }
+
+        return runtimeSupportedDeviceTypes;
+    }
+
+    private static void AddIfRuntimeSupports(
+        AIDevGallery.Interop.WinMLRuntime.IWinMLCapabilities capabilities,
+        AIDevGallery.Interop.WinMLRuntime.WinMLDeviceType deviceType,
+        string deviceTypeName)
+    {
+        capabilities.IsDeviceTypeSupported(deviceType, out var isSupported);
+        if (isSupported != 0)
+        {
+            runtimeSupportedDeviceTypes!.Add(deviceTypeName);
+        }
+    }
+#endif
 
     private void DeviceComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {

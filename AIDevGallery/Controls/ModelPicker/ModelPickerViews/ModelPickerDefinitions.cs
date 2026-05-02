@@ -22,6 +22,7 @@ internal class ModelPickerDefinition
                 CreatePicker = () => new WinAIApiPickerView()
             }
         },
+#if ENABLE_FOUNDRY_LOCAL
         {
             "fl", new ModelPickerDefinition()
             {
@@ -31,6 +32,7 @@ internal class ModelPickerDefinition
                 CreatePicker = () => new FoundryLocalPickerView()
             }
         },
+#endif
         {
             "onnx", new ModelPickerDefinition()
             {

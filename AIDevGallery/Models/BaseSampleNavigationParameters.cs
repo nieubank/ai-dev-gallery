@@ -34,13 +34,22 @@ internal abstract class BaseSampleNavigationParameters(TaskCompletionSource samp
         }
         else if (ExternalModelHelper.IsUrlFromExternalProvider(ChatClientModelPath))
         {
+#if ENABLE_FOUNDRY_LOCAL
             if (ChatClientHardwareAccelerator == HardwareAccelerator.FOUNDRYLOCAL)
             {
                 await FoundryLocalModelProvider.Instance.EnsureModelReadyAsync(ChatClientModelPath, CancellationToken).ConfigureAwait(false);
             }
+#endif
 
             return ExternalModelHelper.GetIChatClient(ChatClientModelPath);
         }
+
+#if WINML_RUNTIME_EXPERIMENTAL
+        if (App.AppData.UseWinMLRuntime)
+        {
+            return await GetWinMLRuntimeChatClientAsync().ConfigureAwait(false);
+        }
+#endif
 
         return await OnnxRuntimeGenAIChatClientFactory.CreateAsync(
             ChatClientModelPath,
@@ -48,6 +57,43 @@ internal abstract class BaseSampleNavigationParameters(TaskCompletionSource samp
             null,
             CancellationToken).ConfigureAwait(false);
     }
+
+#if WINML_RUNTIME_EXPERIMENTAL
+    public async Task<IChatClient?> GetWinMLRuntimeChatClientAsync()
+    {
+        var runtimeOptions = App.AppData.WinMLRuntimeOptions;
+        var deviceType = MapDeviceType(runtimeOptions.DeviceType);
+        var executionPolicy = MapExecutionPolicy(runtimeOptions.ExecutionPolicy);
+
+        return await WinMLRuntimeChatClient.CreateAsync(
+            ChatClientModelPath,
+            ChatClientPromptTemplate,
+            deviceType,
+            executionPolicy,
+            CancellationToken).ConfigureAwait(false);
+    }
+
+    private static Interop.WinMLRuntime.WinMLDeviceType MapDeviceType(string? deviceType)
+    {
+        return deviceType?.ToUpperInvariant() switch
+        {
+            "CPU" => Interop.WinMLRuntime.WinMLDeviceType.CPU,
+            "GPU" => Interop.WinMLRuntime.WinMLDeviceType.GPU,
+            "NPU" => Interop.WinMLRuntime.WinMLDeviceType.NPU,
+            _ => Interop.WinMLRuntime.WinMLDeviceType.Default
+        };
+    }
+
+    private static Interop.WinMLRuntime.WinMLExecutionPolicy MapExecutionPolicy(string? policy)
+    {
+        return policy?.ToUpperInvariant() switch
+        {
+            "PREFERPERFORMANCE" => Interop.WinMLRuntime.WinMLExecutionPolicy.PreferPerformance,
+            "PREFEREFFICIENCY" => Interop.WinMLRuntime.WinMLExecutionPolicy.PreferEfficiency,
+            _ => Interop.WinMLRuntime.WinMLExecutionPolicy.Default
+        };
+    }
+#endif
 
     internal abstract void SendSampleInteractionEvent(string? customInfo = null);
 }

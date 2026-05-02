@@ -1,6 +1,8 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 
+#if ENABLE_FOUNDRY_LOCAL
+
 using AIDevGallery.ExternalModelUtils;
 using AIDevGallery.ExternalModelUtils.FoundryLocal;
 using AIDevGallery.Models;
@@ -203,3 +205,5 @@ internal sealed partial class FoundryLocalPickerView : BaseModelPickerView
         }
     }
 }
+
+#endif

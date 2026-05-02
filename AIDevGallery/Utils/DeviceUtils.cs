@@ -157,6 +157,10 @@ internal static class DeviceUtils
             try
             {
                 OrtEnv.Instance();
+
+#if !ENABLE_FOUNDRY_LOCAL
+                // Register WinML certified EPs. Skipped when building with Foundry Local
+                // because it bundles an incompatible onnxruntime.dll.
                 var catalog = Microsoft.Windows.AI.MachineLearning.ExecutionProviderCatalog.GetDefault();
 
                 try
@@ -168,6 +172,7 @@ internal static class DeviceUtils
                     Debug.WriteLine($"WARNING: Failed to register certified EPs: {ex.Message}");
                     Telemetry.TelemetryFactory.Get<Telemetry.ITelemetry>().LogException("GetEpDevices_RegistrationFailed", ex); // <exclude-line>
                 }
+#endif
 
                 _cachedEpDevices = OrtEnv.Instance().GetEpDevices();
             }

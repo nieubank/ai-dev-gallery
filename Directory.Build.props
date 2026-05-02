@@ -24,9 +24,12 @@
   </ItemGroup>
   <PropertyGroup Condition="$(Configuration)=='Release'">
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <!-- CS0436: WindowsAppSDK.Foundation pre-release auto-initializer type conflicts in self-contained builds -->
+    <WarningsNotAsErrors>$(WarningsNotAsErrors);CS0436</WarningsNotAsErrors>
   </PropertyGroup>
   <PropertyGroup>
     <!-- Turn on/off depending on weather the WinAppSDK is prerelease or not -->
     <IsWindowsAppSDKPreRelease>true</IsWindowsAppSDKPreRelease>
   </PropertyGroup>
+  <Import Project="Directory.Build.props.user" Condition="Exists('Directory.Build.props.user')" />
 </Project>

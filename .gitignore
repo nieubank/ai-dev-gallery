@@ -402,3 +402,4 @@ FodyWeavers.xsd
 
 # Local NuGet config (for development, to avoid SSCA compliance issues in ADO)
 nuget.config
+localpackages/

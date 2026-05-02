@@ -1,6 +1,8 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 
+#if ENABLE_FOUNDRY_LOCAL
+
 using AIDevGallery.ExternalModelUtils.FoundryLocal;
 using AIDevGallery.Models;
 using AIDevGallery.Samples.SharedCode;
@@ -478,3 +480,5 @@ internal class FoundryLocalModelProvider : IExternalModelProvider
         }
     }
 }
+
+#endif

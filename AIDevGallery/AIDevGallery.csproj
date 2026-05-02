@@ -13,6 +13,8 @@
     <Nullable>enable</Nullable>
     <LangVersion>preview</LangVersion>
     <NoWarn>CS8305;WMC1501</NoWarn>
+    <!-- CS0436: WindowsAppSDK.Foundation auto-initializer type conflicts in self-contained prerelease builds -->
+    <NoWarn>$(NoWarn);CS0436</NoWarn>
     <!-- https://github.com/microsoft/CsWin32/issues/1273 -->
     <NoWarn>$(NoWarn);IL2050</NoWarn>
     <!-- Microsoft.Xaml.Interactivity.EventTriggerBehavior is not trimmable -->
@@ -34,6 +36,20 @@
     <!-- Workaround for tests in WinAppSDK1.8Exp3 -->
     <WindowsAppSdkDeploymentManagerInitialize>false</WindowsAppSdkDeploymentManagerInitialize>
   </PropertyGroup>
+
+  <!-- WinML Runtime: opt-in experimental backend (build with /p:EnableWinMLRuntime=true) -->
+  <PropertyGroup Condition="'$(EnableWinMLRuntime)' == 'true'">
+    <DefineConstants>$(DefineConstants);WINML_RUNTIME_EXPERIMENTAL</DefineConstants>
+    <!-- Required by Microsoft.Windows.AI.MachineLearning targets to bypass framework-dependent validation -->
+    <_WindowsAppSDKML>true</_WindowsAppSDKML>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <!-- Foundry Local: opt-in backend (build with /p:EnableFoundryLocal=true) -->
+  <!-- Cannot coexist with WinML ORT packages: each bundles an incompatible onnxruntime.dll -->
+  <PropertyGroup Condition="'$(EnableFoundryLocal)' == 'true'">
+    <DefineConstants>$(DefineConstants);ENABLE_FOUNDRY_LOCAL</DefineConstants>
+  </PropertyGroup>
 	
   <PropertyGroup Condition="'$(IsWindowsAppSDKPreRelease)' == 'true' And '$(SelfContainedIfPreviewWASDK)' == 'true'">
     <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
@@ -41,6 +57,16 @@
 
   <ItemGroup>
     <None Remove="**\*.xaml" />
+  </ItemGroup>
+
+  <!-- Exclude Foundry Local files when not building with EnableFoundryLocal -->
+  <ItemGroup Condition="'$(EnableFoundryLocal)' != 'true'">
+    <Compile Remove="ExternalModelUtils\FoundryLocal\**" />
+    <Compile Remove="ExternalModelUtils\FoundryLocalModelProvider.cs" />
+    <Compile Remove="Controls\ModelPicker\ModelPickerViews\FoundryLocalPickerView.xaml.cs" />
+    <Compile Remove="Samples\SharedCode\IChatClient\FoundryLocalChatClientFactory.cs" />
+    <Compile Remove="Samples\SharedCode\IChatClient\FoundryLocalChatClientAdapter.cs" />
+    <Page Remove="Controls\ModelPicker\ModelPickerViews\FoundryLocalPickerView.xaml" />
   </ItemGroup>
 
   <ItemGroup>
@@ -82,7 +108,7 @@
     <PackageReference Include="CommunityToolkit.WinUI.Helpers" />
     <PackageReference Include="CommunityToolkit.WinUI.Media" />
     <PackageReference Include="MathNet.Numerics" />
-    <PackageReference Include="Microsoft.AI.Foundry.Local.WinML" />
+    <PackageReference Include="Microsoft.AI.Foundry.Local.WinML" Condition="'$(EnableFoundryLocal)' == 'true'" />
     <PackageReference Include="Microsoft.Build" />
     <PackageReference Include="Microsoft.Extensions.AI" />
     <PackageReference Include="OllamaSharp" />
@@ -107,6 +133,7 @@
     <PackageReference Include="System.Drawing.Common" />
     <PackageReference Include="NAudio.WinMM" />
     <PackageReference Include="System.Numerics.Tensors" />
+    <PackageReference Include="Microsoft.Windows.AI.MachineLearning" Condition="'$(EnableWinMLRuntime)' == 'true'" />
     <PackageReference Include="WinUIEx" />
     <PackageReference Include="HtmlAgilityPack" />
     <PackageReference Include="Markdig" />

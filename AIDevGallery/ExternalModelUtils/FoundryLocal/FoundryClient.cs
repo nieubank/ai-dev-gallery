@@ -1,6 +1,8 @@
 ﻿// Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 
+#if ENABLE_FOUNDRY_LOCAL
+
 using Microsoft.AI.Foundry.Local;
 using Microsoft.Extensions.Logging.Abstractions;
 using System;
@@ -63,18 +65,8 @@ internal class FoundryClient : IDisposable
                 _manager = FoundryLocalManager.Instance
             };
 
-            try
-            {
-                await client._manager.EnsureEpsDownloadedAsync();
-            }
-            catch (Exception epEx)
-            {
-                // Log the EP download/registration issue
-                Debug.WriteLine($"[FoundryLocal] EP registration issue: {epEx.Message}");
-                var structuredError = $"ExceptionType: {epEx.GetType().Name}, HResult: 0x{epEx.HResult:X8}";
-                Telemetry.Events.FoundryLocalOperationEvent.Log("EpRegistrationWarning", structuredError);
-            }
-
+            // TODO: Re-enable once Foundry Local ships an EP MSIX compatible with the ORT version in the WinML NuGet.
+            // EnsureEpsDownloadedAsync downloads Microsoft.FoundryLocal.CUDA.EP which bundles an incompatible onnxruntime.
             client._catalog = await client._manager.GetCatalogAsync();
 
             return client;
@@ -305,3 +297,5 @@ internal class FoundryClient : IDisposable
         _disposed = true;
     }
 }
+
+#endif

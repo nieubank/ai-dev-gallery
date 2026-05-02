@@ -27,13 +27,24 @@ internal static partial class SamplesHelper
         {
             if (!models.Values.Any(m => m.IsApi()))
             {
-                AddUnique(SharedCodeEnum.OnnxRuntimeGenAIChatClientFactory);
+#if WINML_RUNTIME_EXPERIMENTAL
+                if (App.AppData.UseWinMLRuntime)
+                {
+                    AddUnique(SharedCodeEnum.WinMLRuntimeChatClient);
+                }
+                else
+#endif
+                {
+                    AddUnique(SharedCodeEnum.OnnxRuntimeGenAIChatClientFactory);
+                }
             }
+#if ENABLE_FOUNDRY_LOCAL
             else if (models.Values.Any(m => m.HardwareAccelerator == HardwareAccelerator.FOUNDRYLOCAL))
             {
                 AddUnique(SharedCodeEnum.FoundryLocalChatClientFactory);
                 AddUnique(SharedCodeEnum.FoundryLocalChatClientAdapter);
             }
+#endif
         }
         else
         {
@@ -215,7 +226,14 @@ internal static partial class SamplesHelper
     private static (string? ChatClientLoaderString, string? ChatClientNamespace) GetChatClientLoaderString(List<SharedCodeEnum> sharedCode, string modelPath, string promptTemplate, bool isPhiSilica, ModelType modelType)
     {
         bool isLanguageModel = ModelDetailsHelper.EqualOrParent(modelType, ModelType.LanguageModels);
-        if (!sharedCode.Contains(SharedCodeEnum.OnnxRuntimeGenAIChatClientFactory) && !sharedCode.Contains(SharedCodeEnum.FoundryLocalChatClientFactory) && !isPhiSilica && !isLanguageModel)
+        if (!sharedCode.Contains(SharedCodeEnum.OnnxRuntimeGenAIChatClientFactory)
+#if WINML_RUNTIME_EXPERIMENTAL
+            && !sharedCode.Contains(SharedCodeEnum.WinMLRuntimeChatClient)
+#endif
+#if ENABLE_FOUNDRY_LOCAL
+            && !sharedCode.Contains(SharedCodeEnum.FoundryLocalChatClientFactory)
+#endif
+            && !isPhiSilica && !isLanguageModel)
         {
             return (null, null);
         }
@@ -228,6 +246,13 @@ internal static partial class SamplesHelper
         {
             return (ExternalModelHelper.GetIChatClientString(modelPath[2..^1]), ExternalModelHelper.GetIChatClientNamespace(modelPath[2..^1]));
         }
+
+#if WINML_RUNTIME_EXPERIMENTAL
+        if (sharedCode.Contains(SharedCodeEnum.WinMLRuntimeChatClient))
+        {
+            return ($"await WinMLRuntimeChatClient.CreateAsync({modelPath}, {promptTemplate})", null);
+        }
+#endif
 
         return ($"await OnnxRuntimeGenAIChatClientFactory.CreateAsync({modelPath}, {promptTemplate})", null);
     }

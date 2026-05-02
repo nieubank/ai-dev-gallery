@@ -92,12 +92,14 @@ internal class ModelCache
     {
         ModelDeletedEvent.Log(model.Url);
 
+#if ENABLE_FOUNDRY_LOCAL
         if (model.Source == CachedModelSource.FoundryLocal)
         {
             var foundryLocalProvider = ExternalModelUtils.FoundryLocalModelProvider.Instance;
             await foundryLocalProvider.DeleteCachedModelAsync(model);
             return;
         }
+#endif
 
         await CacheStore.RemoveModel(model);
 
@@ -121,12 +123,16 @@ internal class ModelCache
     {
         var allModels = new List<CachedModel>(CacheStore.Models);
 
+#if ENABLE_FOUNDRY_LOCAL
         var foundryLocalProvider = ExternalModelUtils.FoundryLocalModelProvider.Instance;
         if (await foundryLocalProvider.IsAvailable())
         {
             var foundryModels = await foundryLocalProvider.GetCachedModelsWithDetails();
             allModels.AddRange(foundryModels);
         }
+#else
+        await Task.CompletedTask;
+#endif
 
         return allModels;
     }
@@ -135,12 +141,14 @@ internal class ModelCache
     {
         ModelCacheDeletedEvent.Log();
 
+#if ENABLE_FOUNDRY_LOCAL
         // Clear FoundryLocal cache first to prevent directory access conflicts
         var foundryLocalProvider = ExternalModelUtils.FoundryLocalModelProvider.Instance;
         if (await foundryLocalProvider.IsAvailable())
         {
             await foundryLocalProvider.ClearAllCacheAsync();
         }
+#endif
 
         var cacheDir = GetCacheFolder();
         Directory.Delete(cacheDir, true);

@@ -65,6 +65,9 @@ internal sealed partial class SampleContainer : UserControl
     private Dictionary<ModelType, ExpandedModelDetails>? _cachedModels;
     private List<ModelDetails>? _modelsCache;
     private WinMlSampleOptions? _currentWinMlSampleOptions;
+#if WINML_RUNTIME_EXPERIMENTAL
+    private bool _cachedUseWinMLRuntime;
+#endif
     private CancellationTokenSource? _sampleLoadingCts;
     private TaskCompletionSource? _sampleLoadedCompletionSource;
     private double _codePaneWidth;
@@ -349,7 +352,11 @@ internal sealed partial class SampleContainer : UserControl
         if (_sampleCache == sample &&
             _modelsCache != null &&
             models != null &&
-            winMlSampleOptions == _currentWinMlSampleOptions)
+            winMlSampleOptions == _currentWinMlSampleOptions
+#if WINML_RUNTIME_EXPERIMENTAL
+            && _cachedUseWinMLRuntime == App.AppData.UseWinMLRuntime
+#endif
+            )
         {
             var modelsAreEqual = true;
             if (_modelsCache.Count != models.Count)
@@ -377,6 +384,10 @@ internal sealed partial class SampleContainer : UserControl
 
         _sampleCache = sample;
         _currentWinMlSampleOptions = winMlSampleOptions;
+#if WINML_RUNTIME_EXPERIMENTAL
+        _cachedUseWinMLRuntime = App.AppData.UseWinMLRuntime;
+        SetExperimentalWinMLRuntimeInfoBar(winMlSampleOptions);
+#endif
 
         if (models != null)
         {
@@ -396,6 +407,19 @@ internal sealed partial class SampleContainer : UserControl
 
         return true;
     }
+
+#if WINML_RUNTIME_EXPERIMENTAL
+    private void SetExperimentalWinMLRuntimeInfoBar(WinMlSampleOptions? winMlSampleOptions)
+    {
+        var isRuntimeLanguageSample = _sampleCache != null &&
+            _sampleCache.Model1Types
+                .Concat(_sampleCache.Model2Types ?? Enumerable.Empty<ModelType>())
+                .Any(modelType => ModelDetailsHelper.EqualOrParent(modelType, ModelType.LanguageModels));
+        var isExperimentalRuntimeSample = winMlSampleOptions != null && App.AppData.UseWinMLRuntime && isRuntimeLanguageSample;
+        ExperimentalWinMLRuntimeInfoBar.Visibility = isExperimentalRuntimeSample ? Visibility.Visible : Visibility.Collapsed;
+        ExperimentalWinMLRuntimeInfoBar.IsOpen = isExperimentalRuntimeSample;
+    }
+#endif
 
     private void RenderCodeTabs(bool force = false)
     {
