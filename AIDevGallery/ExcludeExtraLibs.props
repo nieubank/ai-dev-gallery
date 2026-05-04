@@ -21,18 +21,41 @@
        WASDK's self-contained mode extracts its own copies from the MSIX into MsixContent.
        Use WASDK's built-in MicrosoftWindowsAppSDKFilesExcluded to suppress the WASDK copies,
        letting the NuGet's matched versions win. -->
-  <ItemGroup Condition="'$(EnableWinMLRuntime)' == 'true'">
-    <MicrosoftWindowsAppSDKFilesExcluded Include="$(SelfContainedIntermediateOutputPath)MsixContent\DirectML.dll" />
-    <MicrosoftWindowsAppSDKFilesExcluded Include="$(SelfContainedIntermediateOutputPath)MsixContent\onnxruntime.dll" />
-    <MicrosoftWindowsAppSDKFilesExcluded Include="$(SelfContainedIntermediateOutputPath)MsixContent\Microsoft.Windows.AI.MachineLearning.dll" />
-    <MicrosoftWindowsAppSDKFilesExcluded Include="$(SelfContainedIntermediateOutputPath)MsixContent\WinMLRuntime.dll" />
-    <MicrosoftWindowsAppSDKFilesExcluded Include="$(SelfContainedIntermediateOutputPath)MsixContent\WinMLRuntimeCore.dll" />
-    <MicrosoftWindowsAppSDKFilesExcluded Include="$(SelfContainedIntermediateOutputPath)MsixContent\WinMLTextGeneration.dll" />
-    <MicrosoftWindowsAppSDKFilesExcluded Include="$(SelfContainedIntermediateOutputPath)MsixContent\WinMLTokenizer.dll" />
-    <MicrosoftWindowsAppSDKFilesExcluded Include="$(SelfContainedIntermediateOutputPath)MsixContent\cgc.dll" />
-    <MicrosoftWindowsAppSDKFilesExcluded Include="$(SelfContainedIntermediateOutputPath)MsixContent\cgc_ir.dll" />
-    <MicrosoftWindowsAppSDKFilesExcluded Include="$(SelfContainedIntermediateOutputPath)MsixContent\dxcgc.dll" />
-  </ItemGroup>
+  <Target Name="ExcludeWinMLRuntimeWasdkMsixFiles"
+          BeforeTargets="AddMicrosoftWindowsAppSDKPayloadFilesFromMsix"
+          DependsOnTargets="GetExtractMicrosoftWindowsAppSDKMsixFilesInputs"
+          Condition="'$(EnableWinMLRuntime)' == 'true' And '$(MicrosoftWindowsAppSDKPackageDir)' != ''">
+    <ItemGroup>
+      <MicrosoftWindowsAppSDKFilesExcluded Include="$(MicrosoftWindowsAppSDKMsixContent)\DirectML.dll" />
+      <MicrosoftWindowsAppSDKFilesExcluded Include="$(MicrosoftWindowsAppSDKMsixContent)\onnxruntime.dll" />
+      <MicrosoftWindowsAppSDKFilesExcluded Include="$(MicrosoftWindowsAppSDKMsixContent)\Microsoft.Windows.AI.MachineLearning.dll" />
+      <MicrosoftWindowsAppSDKFilesExcluded Include="$(MicrosoftWindowsAppSDKMsixContent)\WinMLRuntime.dll" />
+      <MicrosoftWindowsAppSDKFilesExcluded Include="$(MicrosoftWindowsAppSDKMsixContent)\WinMLRuntimeCore.dll" />
+      <MicrosoftWindowsAppSDKFilesExcluded Include="$(MicrosoftWindowsAppSDKMsixContent)\WinMLTextGeneration.dll" />
+      <MicrosoftWindowsAppSDKFilesExcluded Include="$(MicrosoftWindowsAppSDKMsixContent)\WinMLTokenizer.dll" />
+      <MicrosoftWindowsAppSDKFilesExcluded Include="$(MicrosoftWindowsAppSDKMsixContent)\cgc.dll" />
+      <MicrosoftWindowsAppSDKFilesExcluded Include="$(MicrosoftWindowsAppSDKMsixContent)\cgc_ir.dll" />
+      <MicrosoftWindowsAppSDKFilesExcluded Include="$(MicrosoftWindowsAppSDKMsixContent)\dxcgc.dll" />
+    </ItemGroup>
+  </Target>
+
+  <Target Name="ExcludeWinMLRuntimeWasdkComponentFiles"
+          BeforeTargets="AddMicrosoftWindowsAppSDKPayloadFilesFromComponents"
+          DependsOnTargets="GetWindowsAppSDKNativePlatform"
+          Condition="'$(EnableWinMLRuntime)' == 'true' And '$(MicrosoftWindowsAppSDKPackageDir)' == ''">
+    <ItemGroup>
+      <MicrosoftWindowsAppSDKFilesExcluded Include="@(WindowsAppSdkComponentPackages->'%(Identity)runtimes-framework\win-$(NativePlatform)\native\DirectML.dll')" />
+      <MicrosoftWindowsAppSDKFilesExcluded Include="@(WindowsAppSdkComponentPackages->'%(Identity)runtimes-framework\win-$(NativePlatform)\native\onnxruntime.dll')" />
+      <MicrosoftWindowsAppSDKFilesExcluded Include="@(WindowsAppSdkComponentPackages->'%(Identity)runtimes-framework\win-$(NativePlatform)\native\Microsoft.Windows.AI.MachineLearning.dll')" />
+      <MicrosoftWindowsAppSDKFilesExcluded Include="@(WindowsAppSdkComponentPackages->'%(Identity)runtimes-framework\win-$(NativePlatform)\native\WinMLRuntime.dll')" />
+      <MicrosoftWindowsAppSDKFilesExcluded Include="@(WindowsAppSdkComponentPackages->'%(Identity)runtimes-framework\win-$(NativePlatform)\native\WinMLRuntimeCore.dll')" />
+      <MicrosoftWindowsAppSDKFilesExcluded Include="@(WindowsAppSdkComponentPackages->'%(Identity)runtimes-framework\win-$(NativePlatform)\native\WinMLTextGeneration.dll')" />
+      <MicrosoftWindowsAppSDKFilesExcluded Include="@(WindowsAppSdkComponentPackages->'%(Identity)runtimes-framework\win-$(NativePlatform)\native\WinMLTokenizer.dll')" />
+      <MicrosoftWindowsAppSDKFilesExcluded Include="@(WindowsAppSdkComponentPackages->'%(Identity)runtimes-framework\win-$(NativePlatform)\native\cgc.dll')" />
+      <MicrosoftWindowsAppSDKFilesExcluded Include="@(WindowsAppSdkComponentPackages->'%(Identity)runtimes-framework\win-$(NativePlatform)\native\cgc_ir.dll')" />
+      <MicrosoftWindowsAppSDKFilesExcluded Include="@(WindowsAppSdkComponentPackages->'%(Identity)runtimes-framework\win-$(NativePlatform)\native\dxcgc.dll')" />
+    </ItemGroup>
+  </Target>
 
   <!-- Also remove any non-NuGet copies from NativeCopyLocalItems/ReferenceCopyLocalPaths
        (e.g., from Foundry or WASDK.ML runtimes-framework convention) -->
