@@ -294,6 +294,51 @@ public class WinMLRuntimeChatClientTests
         }
     }
 
+    [TestMethod]
+    public void GetExternalDataFileForModel_UsesMatchingModelDataFile()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
+        Directory.CreateDirectory(tempDir);
+        try
+        {
+            var modelPath = Path.Combine(tempDir, "model.onnx");
+            var expectedResourcePath = modelPath + ".data";
+            File.WriteAllText(modelPath, string.Empty);
+            File.WriteAllText(expectedResourcePath, string.Empty);
+            File.WriteAllText(Path.Combine(tempDir, ".azDownload-temp-model.onnx.data"), string.Empty);
+            File.WriteAllText(Path.Combine(tempDir, "other.onnx.data"), string.Empty);
+
+            var resourcePath = WinMLRuntimeModelLoader.GetExternalDataFileForModel(modelPath);
+
+            Assert.AreEqual(expectedResourcePath, resourcePath);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
+    [TestMethod]
+    public void GetExternalDataFileForModel_ReturnsNullWhenMatchingDataFileIsMissing()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
+        Directory.CreateDirectory(tempDir);
+        try
+        {
+            var modelPath = Path.Combine(tempDir, "model.onnx");
+            File.WriteAllText(modelPath, string.Empty);
+            File.WriteAllText(Path.Combine(tempDir, "other.onnx.data"), string.Empty);
+
+            var resourcePath = WinMLRuntimeModelLoader.GetExternalDataFileForModel(modelPath);
+
+            Assert.IsNull(resourcePath);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
     // ── Helper ──────────────────────────────────────────────────────
 
     /// <summary>

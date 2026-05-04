@@ -98,7 +98,7 @@ internal sealed class WinMLRuntimeChatClient : IChatClient
                         System.Diagnostics.Trace.WriteLine($"[WinMLRuntime]   {info.Name} ({info.Length:N0} bytes)");
                     }
 
-                    model = LoadModelWithResources(runtime, modelPath, modelDir);
+                    model = WinMLRuntimeModelLoader.LoadModelWithExternalData(runtime, modelPath);
 
                     System.Diagnostics.Trace.WriteLine($"[WinMLRuntime] Creating pipeline...");
                     try
@@ -347,17 +347,6 @@ internal sealed class WinMLRuntimeChatClient : IChatClient
         return sb.ToString();
     }
 
-    private static IWinMLModel LoadModelWithResources(WinMLRuntimeWrapper runtime, string modelPath, string modelDir)
-    {
-        var model = runtime.LoadModelFromFile(modelPath);
-        foreach (var resourceFile in Directory.EnumerateFiles(modelDir, "*.onnx.data", SearchOption.TopDirectoryOnly))
-        {
-            model.AttachWeightsFromFile(resourceFile);
-        }
-
-        return model;
-    }
-
     private static IWinMLPipeline CreatePipelineFromConfig(
         WinMLRuntimeWrapper runtime,
         IWinMLModel decoderModel,
@@ -388,8 +377,8 @@ internal sealed class WinMLRuntimeChatClient : IChatClient
         try
         {
             builder = runtime.CreatePipelineBuilder();
-            embeddingsModel = LoadModelWithResources(runtime, embeddingsPath, config.ModelDirectory);
-            lmHeadModel = LoadModelWithResources(runtime, lmHeadPath, config.ModelDirectory);
+            embeddingsModel = WinMLRuntimeModelLoader.LoadModelWithExternalData(runtime, embeddingsPath);
+            lmHeadModel = WinMLRuntimeModelLoader.LoadModelWithExternalData(runtime, lmHeadPath);
 
             embeddingsStage = AddStage(builder, embeddingsModel, "embeddings", deviceType, executionPolicy);
             decoderStage = AddStage(builder, decoderModel, "decoder", deviceType, executionPolicy);

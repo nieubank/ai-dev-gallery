@@ -11,7 +11,6 @@ using AIDevGallery.Interop.WinMLRuntime;
 using Microsoft.ML.OnnxRuntime.Tensors;
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -58,17 +57,7 @@ internal sealed class WinMLInferenceSession : IDisposable
                 cancellationToken.ThrowIfCancellationRequested();
 
                 var runtime = WinMLRuntimeWrapper.Create();
-                var model = runtime.LoadModelFromFile(modelPath);
-
-                // Attach external weights if present alongside the model
-                var modelDir = Path.GetDirectoryName(modelPath);
-                if (modelDir != null)
-                {
-                    foreach (var weightsFile in Directory.GetFiles(modelDir, "*.onnx.data"))
-                    {
-                        model.AttachWeightsFromFile(weightsFile);
-                    }
-                }
+                var model = WinMLRuntimeModelLoader.LoadModelWithExternalData(runtime, modelPath);
 
                 var pipeline = runtime.CreatePipeline(model, deviceType);
                 pipeline.Initialize();

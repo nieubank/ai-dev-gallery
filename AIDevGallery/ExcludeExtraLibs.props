@@ -16,7 +16,7 @@
   </Target>
 
   <!-- When EnableWinMLRuntime is active, the Microsoft.Windows.AI.MachineLearning NuGet provides
-       DirectML, onnxruntime, and Microsoft.Windows.AI.MachineLearning as a self-contained matched set
+       DirectML, onnxruntime, Microsoft.Windows.AI.MachineLearning, and CGC as a self-contained matched set
        alongside WinMLRuntime*, WinMLTokenizer, and WinMLTextGeneration.
        WASDK's self-contained mode extracts its own copies from the MSIX into MsixContent.
        Use WASDK's built-in MicrosoftWindowsAppSDKFilesExcluded to suppress the WASDK copies,
@@ -25,6 +25,9 @@
     <MicrosoftWindowsAppSDKFilesExcluded Include="$(SelfContainedIntermediateOutputPath)MsixContent\DirectML.dll" />
     <MicrosoftWindowsAppSDKFilesExcluded Include="$(SelfContainedIntermediateOutputPath)MsixContent\onnxruntime.dll" />
     <MicrosoftWindowsAppSDKFilesExcluded Include="$(SelfContainedIntermediateOutputPath)MsixContent\Microsoft.Windows.AI.MachineLearning.dll" />
+    <MicrosoftWindowsAppSDKFilesExcluded Include="$(SelfContainedIntermediateOutputPath)MsixContent\cgc.dll" />
+    <MicrosoftWindowsAppSDKFilesExcluded Include="$(SelfContainedIntermediateOutputPath)MsixContent\cgc_ir.dll" />
+    <MicrosoftWindowsAppSDKFilesExcluded Include="$(SelfContainedIntermediateOutputPath)MsixContent\dxcgc.dll" />
   </ItemGroup>
 
   <!-- Also remove any non-NuGet copies from NativeCopyLocalItems/ReferenceCopyLocalPaths
@@ -35,11 +38,11 @@
       <NativeCopyLocalItems Remove="@(NativeCopyLocalItems)"
                             Condition="!$([System.String]::Copy('%(NativeCopyLocalItems.NuGetPackageId)').Equals('Microsoft.Windows.AI.MachineLearning', StringComparison.OrdinalIgnoreCase))
                                        And ($([System.Text.RegularExpressions.Regex]::IsMatch('%(Filename)%(Extension)',
-                                      '^(DirectML|onnxruntime|Microsoft\.Windows\.AI\.MachineLearning)\.dll$', RegexOptions.IgnoreCase)))" />
+                                       '^(DirectML|onnxruntime|Microsoft\.Windows\.AI\.MachineLearning|cgc|cgc_ir|dxcgc)\.dll$', RegexOptions.IgnoreCase)))" />
       <ReferenceCopyLocalPaths Remove="@(ReferenceCopyLocalPaths)"
-                            Condition="!$([System.String]::Copy('%(ReferenceCopyLocalPaths.NuGetPackageId)').Equals('Microsoft.Windows.AI.MachineLearning', StringComparison.OrdinalIgnoreCase))
-                                       And ($([System.Text.RegularExpressions.Regex]::IsMatch('%(Filename)%(Extension)',
-                                      '^(DirectML|onnxruntime|Microsoft\.Windows\.AI\.MachineLearning)\.dll$', RegexOptions.IgnoreCase)))" />
+                             Condition="!$([System.String]::Copy('%(ReferenceCopyLocalPaths.NuGetPackageId)').Equals('Microsoft.Windows.AI.MachineLearning', StringComparison.OrdinalIgnoreCase))
+                                        And ($([System.Text.RegularExpressions.Regex]::IsMatch('%(Filename)%(Extension)',
+                                       '^(DirectML|onnxruntime|Microsoft\.Windows\.AI\.MachineLearning|cgc|cgc_ir|dxcgc)\.dll$', RegexOptions.IgnoreCase)))" />
     </ItemGroup>
     <Message Importance="High" Text="Using self-contained DirectML/onnxruntime/ML from Microsoft.Windows.AI.MachineLearning NuGet." />
   </Target>
