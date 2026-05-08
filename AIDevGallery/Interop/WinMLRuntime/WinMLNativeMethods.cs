@@ -3,6 +3,8 @@
 
 #if WINML_RUNTIME_EXPERIMENTAL
 
+#pragma warning disable SA1518 // File may not end with a newline character
+
 using System;
 using System.Runtime.InteropServices;
 
@@ -31,6 +33,11 @@ internal static partial class WinMLNativeMethods
         string configFilePath,
         out WinMLGenAIConfigNative config);
 
+    [LibraryImport("WinMLTextGeneration.dll", EntryPoint = "WinMLParseGenAIConfig", StringMarshalling = StringMarshalling.Utf16)]
+    internal static partial int WinMLParseGenAIConfig(
+        string configFilePath,
+        out WinMLGenAIConfigNative config);
+
     [LibraryImport("WinMLTextGeneration.dll")]
     internal static partial int WinMLCreateTextGenerator(
         IntPtr pipeline,
@@ -39,5 +46,4 @@ internal static partial class WinMLNativeMethods
         IntPtr sampler,
         out IntPtr generator);
 }
-
 #endif

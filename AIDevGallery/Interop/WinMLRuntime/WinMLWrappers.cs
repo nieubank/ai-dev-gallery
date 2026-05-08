@@ -525,7 +525,18 @@ internal sealed record WinMLGenAIConfig(
             throw new FileNotFoundException("Windows ML Runtime requires genai_config.json for language-model loading.", configPath);
         }
 
-        Marshal.ThrowExceptionForHR(WinMLNativeMethods.WinMLParseGenAIConfigFromFile(configPath, out var nativeConfig));
+        int hr;
+        WinMLGenAIConfigNative nativeConfig;
+        try
+        {
+            hr = WinMLNativeMethods.WinMLParseGenAIConfigFromFile(configPath, out nativeConfig);
+        }
+        catch (EntryPointNotFoundException)
+        {
+            hr = WinMLNativeMethods.WinMLParseGenAIConfig(configPath, out nativeConfig);
+        }
+
+        Marshal.ThrowExceptionForHR(hr);
         try
         {
             return FromNative(configPath, modelDirectory, nativeConfig);
@@ -620,5 +631,4 @@ internal sealed record WinMLGenAIConfig(
         nativeConfig = default;
     }
 }
-
 #endif

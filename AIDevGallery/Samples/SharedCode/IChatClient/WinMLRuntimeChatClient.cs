@@ -553,5 +553,4 @@ internal sealed class WinMLRuntimeChatClient : IChatClient
         }
     }
 }
-
 #endif

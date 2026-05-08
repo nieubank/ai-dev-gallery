@@ -51,5 +51,4 @@ internal static class WinMLRuntimeModelLoader
         return File.Exists(resourceFile) ? resourceFile : null;
     }
 }
-
 #endif

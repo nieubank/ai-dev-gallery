@@ -256,5 +256,4 @@ internal sealed class WinMLInferenceSession : IDisposable
         }
     }
 }
-
 #endif
